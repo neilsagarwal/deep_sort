@@ -51,13 +51,12 @@ def run(sequence_dir, result_file, show_false_alarms=False, detection_file=None,
             detections = deep_sort_app.create_detections(
                 seq_info["detections"], frame_idx)
             vis.draw_detections(detections)
-
         mask = results[:, 0].astype(np.int) == frame_idx
         track_ids = results[mask, 1].astype(np.int)
         boxes = results[mask, 2:6]
         vis.draw_groundtruth(track_ids, boxes)
-
         if show_false_alarms:
+
             groundtruth = seq_info["groundtruth"]
             mask = groundtruth[:, 0].astype(np.int) == frame_idx
             gt_boxes = groundtruth[mask, 2:6]
@@ -76,7 +75,7 @@ def run(sequence_dir, result_file, show_false_alarms=False, detection_file=None,
         update_ms = DEFAULT_UPDATE_MS
     visualizer = visualization.Visualization(seq_info, update_ms)
     if video_filename is not None:
-        visualizer.viewer.enable_videowriter(video_filename)
+        visualizer.viewer.enable_videowriter(video_filename, fourcc_string="mp4v")
     visualizer.run(frame_callback)
 
 

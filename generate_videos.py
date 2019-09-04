@@ -39,27 +39,31 @@ if __name__ == "__main__":
     args = parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
-    for sequence_txt in os.listdir(args.result_dir):
-        sequence = os.path.splitext(sequence_txt)[0]
-        sequence_dir = os.path.join(args.mot_dir, sequence)
-        if not os.path.exists(sequence_dir):
-            continue
-        result_file = os.path.join(args.result_dir, sequence_txt)
-        update_ms = args.update_ms
-        video_filename = os.path.join(args.output_dir, "%s.avi" % sequence)
+    # for sequence_txt in os.listdir(args.result_dir):
+    # sequence = os.path.splitext(sequence_txt)[0]
+    # sequence="deep_sort"
+    # sequence_dir = os.path.join(args.mot_dir, sequence)
+    # if not os.path.exists(sequence_dir):
+    #     continue
+    sequence_dir = "/home/ubuntu/SurveillanceDataset/videos/elizabeth_eastalpine/raw_frames_cropped/"
+    result_file = "/home/ubuntu/SurveillanceDataset/videos/elizabeth_eastalpine/experiments/deep_sort/labels.csv"
+    update_ms = args.update_ms
+    video_filename = os.path.join(args.output_dir, "%s.avi" % "deep_sort")
 
-        print("Saving %s to %s." % (sequence_txt, video_filename))
-        show_results.run(
-            sequence_dir, result_file, False, None, update_ms, video_filename)
-
-    if not args.convert_h264:
-        import sys
-        sys.exit()
-    for sequence_txt in os.listdir(args.result_dir):
-        sequence = os.path.splitext(sequence_txt)[0]
-        sequence_dir = os.path.join(args.mot_dir, sequence)
-        if not os.path.exists(sequence_dir):
-            continue
-        filename_in = os.path.join(args.output_dir, "%s.avi" % sequence)
-        filename_out = os.path.join(args.output_dir, "%s.mp4" % sequence)
-        convert(filename_in, filename_out)
+    # print("Saving %s to %s." % (sequence_txt, video_filename))
+    show_results.run(
+        sequence_dir, result_file, False, None, update_ms, video_filename)
+    print("ah")
+    # if not args.convert_h264:
+    #     import sys
+    #     sys.exit()
+    # for sequence_txt in os.listdir(args.result_dir):
+        # sequence = os.path.splitext(sequence_txt)[0]
+        # sequence_dir = os.path.join(args.mot_dir, sequence)
+        # if not os.path.exists(sequence_dir):
+            # continue
+    filename_in = os.path.join(args.output_dir, "%s.avi" % "deep_sort")
+    print("ho")
+    filename_out = os.path.join(args.output_dir, "%s.mp4" % "deep_sort")
+    print("hey")
+    convert(filename_in, filename_out)

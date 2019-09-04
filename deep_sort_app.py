@@ -40,11 +40,12 @@ def gather_sequence_info(sequence_dir, detection_file):
         * max_frame_idx: Index of the last frame.
 
     """
-    image_dir = os.path.join(sequence_dir, "img1")
+    image_dir = sequence_dir
     image_filenames = {
-        int(os.path.splitext(f)[0]): os.path.join(image_dir, f)
+        int(os.path.splitext(f)[0].split("_")[1]): os.path.join(image_dir, f)
         for f in os.listdir(image_dir)}
     groundtruth_file = os.path.join(sequence_dir, "gt/gt.txt")
+    # print(image_filenames)
 
     detections = None
     if detection_file is not None:
@@ -160,15 +161,18 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
     seq_info = gather_sequence_info(sequence_dir, detection_file)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget)
-    tracker = Tracker(metric)
+    tracker = Tracker(metric=metric, max_age=500, n_init=1)
     results = []
 
     def frame_callback(vis, frame_idx):
-        print("Processing frame %05d" % frame_idx)
+        if frame_idx % 1000 == 0:
+            print("Processing frame %05d" % frame_idx)
 
         # Load image and generate detections.
         detections = create_detections(
             seq_info["detections"], frame_idx, min_detection_height)
+
+
         detections = [d for d in detections if d.confidence >= min_confidence]
 
         # Run non-maxima suppression.
@@ -191,12 +195,15 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
             vis.draw_trackers(tracker.tracks)
 
         # Store results.
-        for track in tracker.tracks:
-            if not track.is_confirmed() or track.time_since_update > 1:
-                continue
-            bbox = track.to_tlwh()
+        for track, d in zip(tracker.tracks, detections):
+            # if not track.is_confirmed() or track.time_since_update > 1:
+            #     continue
+            # bbox = track.to_tlwh()
+            bbox = d.tlwh
             results.append([
                 frame_idx, track.track_id, bbox[0], bbox[1], bbox[2], bbox[3]])
+
+
 
     # Run tracker.
     if display:
@@ -235,7 +242,7 @@ def parse_args():
     parser.add_argument(
         "--min_confidence", help="Detection confidence threshold. Disregard "
         "all detections that have a confidence lower than this value.",
-        default=0.8, type=float)
+        default=0.7, type=float)
     parser.add_argument(
         "--min_detection_height", help="Threshold on the detection bounding "
         "box height. Detections with height smaller than this value are "
