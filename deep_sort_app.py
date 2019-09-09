@@ -129,7 +129,7 @@ def create_detections(detection_mat, frame_idx, min_height=0):
 
 def run(sequence_dir, detection_file, output_file, min_confidence,
         nms_max_overlap, min_detection_height, max_cosine_distance,
-        nn_budget, display):
+        nn_budget, display, max_age, n_init, max_iou_distance):
     """Run multi-target tracker on a particular sequence.
 
     Parameters
@@ -161,7 +161,7 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
     seq_info = gather_sequence_info(sequence_dir, detection_file)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget)
-    tracker = Tracker(metric=metric, max_age=500, n_init=1)
+    tracker = Tracker(metric=metric, max_age=max_age, n_init=n_init, max_iou_distance=max_iou_distance)
     results = []
 
     def frame_callback(vis, frame_idx):
@@ -195,11 +195,11 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
             vis.draw_trackers(tracker.tracks)
 
         # Store results.
+        # print(len(tracker.tracks), print(len(detections)))
         for track, d in zip(tracker.tracks, detections):
-            # if not track.is_confirmed() or track.time_since_update > 1:
-            #     continue
-            # bbox = track.to_tlwh()
-            bbox = d.tlwh
+            if not track.is_confirmed() or track.time_since_update > 1:
+                continue
+            bbox = track.to_tlwh()
             results.append([
                 frame_idx, track.track_id, bbox[0], bbox[1], bbox[2], bbox[3]])
 
@@ -259,6 +259,12 @@ def parse_args():
     parser.add_argument(
         "--display", help="Show intermediate tracking results",
         default=True, type=bool_string)
+    parser.add_argument(
+        "--max_age", type=int, default=30)
+    parser.add_argument(
+        "--n_init", type=int, default=3)
+    parser.add_argument(
+	"--max_iou_distance", type=float, default=0.7)
     return parser.parse_args()
 
 
@@ -267,4 +273,4 @@ if __name__ == "__main__":
     run(
         args.sequence_dir, args.detection_file, args.output_file,
         args.min_confidence, args.nms_max_overlap, args.min_detection_height,
-        args.max_cosine_distance, args.nn_budget, args.display)
+        args.max_cosine_distance, args.nn_budget, args.display, args.max_age, args.n_init, args.max_iou_distance)
