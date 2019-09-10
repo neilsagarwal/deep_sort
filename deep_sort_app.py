@@ -3,7 +3,7 @@ from __future__ import division, print_function, absolute_import
 
 import argparse
 import os
-
+import pickle
 import cv2
 import numpy as np
 
@@ -13,8 +13,13 @@ from deep_sort import nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 
+filename = "/home/ubuntu/SurveillanceDataset/cached_data"
+detections_cache = "/home/ubuntu/SurveillanceDataset/cached_detections/%s"
 
 def gather_sequence_info(sequence_dir, detection_file):
+    if os.path.exists(filename):
+        return pickle.load( open( filename, "rb" ) )
+
     """Gather sequence information, such as image filenames, detections,
     groundtruth (if available).
 
@@ -91,6 +96,8 @@ def gather_sequence_info(sequence_dir, detection_file):
         "feature_dim": feature_dim,
         "update_ms": update_ms
     }
+    pickle.dump(seq_info, open( filename, "wb" ))
+    print("done")
     return seq_info
 
 
@@ -130,6 +137,10 @@ def create_detections(detection_mat, frame_idx, min_height=0):
 def run(sequence_dir, detection_file, output_file, min_confidence,
         nms_max_overlap, min_detection_height, max_cosine_distance,
         nn_budget, display, max_age, n_init, max_iou_distance):
+
+    if os.path.exists(output_file):
+        print("skipped this experiment")
+        return
     """Run multi-target tracker on a particular sequence.
 
     Parameters
@@ -168,35 +179,43 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
         if frame_idx % 1000 == 0:
             print("Processing frame %05d" % frame_idx)
 
-        # Load image and generate detections.
-        detections = create_detections(
-            seq_info["detections"], frame_idx, min_detection_height)
+        detections = None
+        if os.path.exists(detections_cache % frame_idx):
+            detections = pickle.load( open( detections_cache % frame_idx, "rb" ) )
+        else:
+            # Load image and generate detections.
+            detections = create_detections(
+                seq_info["detections"], frame_idx, min_detection_height)
 
 
-        detections = [d for d in detections if d.confidence >= min_confidence]
+            detections = [d for d in detections if d.confidence >= min_confidence]
 
-        # Run non-maxima suppression.
-        boxes = np.array([d.tlwh for d in detections])
-        scores = np.array([d.confidence for d in detections])
-        indices = preprocessing.non_max_suppression(
-            boxes, nms_max_overlap, scores)
-        detections = [detections[i] for i in indices]
+            # Run non-maxima suppression.
+            boxes = np.array([d.tlwh for d in detections])
+            scores = np.array([d.confidence for d in detections])
+            indices = preprocessing.non_max_suppression(
+                boxes, nms_max_overlap, scores)
+            detections = [detections[i] for i in indices]
+            pickle.dump(detections, open( detections_cache % frame_idx, "wb" ))
+            print ("dumped")
+
+
 
         # Update tracker.
         tracker.predict()
         tracker.update(detections)
 
         # Update visualization.
-        if display:
-            image = cv2.imread(
-                seq_info["image_filenames"][frame_idx], cv2.IMREAD_COLOR)
-            vis.set_image(image.copy())
-            vis.draw_detections(detections)
-            vis.draw_trackers(tracker.tracks)
+        # if display:
+        #     image = cv2.imread(
+        #         seq_info["image_filenames"][frame_idx], cv2.IMREAD_COLOR)
+        #     vis.set_image(image.copy())
+        #     vis.draw_detections(detections)
+        #     vis.draw_trackers(tracker.tracks)
 
         # Store results.
         # print(len(tracker.tracks), print(len(detections)))
-        for track, d in zip(tracker.tracks, detections):
+        for track in tracker.tracks:
             if not track.is_confirmed() or track.time_since_update > 1:
                 continue
             bbox = track.to_tlwh()
