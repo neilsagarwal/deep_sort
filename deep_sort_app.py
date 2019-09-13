@@ -13,8 +13,8 @@ from deep_sort import nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 
-filename = "/home/ubuntu/SurveillanceDataset/cached_data"
-detections_cache = "/home/ubuntu/SurveillanceDataset/cached_detections/%s"
+detections_cache = None
+filename = None
 
 def gather_sequence_info(sequence_dir, detection_file):
     if os.path.exists(filename):
@@ -136,7 +136,16 @@ def create_detections(detection_mat, frame_idx, min_height=0):
 
 def run(sequence_dir, detection_file, output_file, min_confidence,
         nms_max_overlap, min_detection_height, max_cosine_distance,
-        nn_budget, display, max_age, n_init, max_iou_distance):
+        nn_budget, display, max_age, n_init, max_iou_distance, detections_cache_temp, filename_temp):
+    
+    global detections_cache
+    global filename
+
+    if not os.path.exists(detections_cache_temp):
+        os.mkdir(detections_cache_temp)
+    detections_cache = detections_cache_temp + "/%s"
+    filename = filename_temp
+
 
     if os.path.exists(output_file):
         print("skipped this experiment")
@@ -284,6 +293,10 @@ def parse_args():
         "--n_init", type=int, default=3)
     parser.add_argument(
 	"--max_iou_distance", type=float, default=0.7)
+    parser.add_argument(
+        "--detections_cache", type=str)
+    parser.add_argument(
+        "--filename", type=str)
     return parser.parse_args()
 
 
@@ -292,4 +305,4 @@ if __name__ == "__main__":
     run(
         args.sequence_dir, args.detection_file, args.output_file,
         args.min_confidence, args.nms_max_overlap, args.min_detection_height,
-        args.max_cosine_distance, args.nn_budget, args.display, args.max_age, args.n_init, args.max_iou_distance)
+        args.max_cosine_distance, args.nn_budget, args.display, args.max_age, args.n_init, args.max_iou_distance, args.detections_cache, args.filename)
