@@ -14,92 +14,9 @@ from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 
 detections_cache = None
-filename = None
 
-def gather_sequence_info(sequence_dir, detection_file):
-    if os.path.exists(filename):
-        return pickle.load( open( filename, "rb" ) )
-
-    """Gather sequence information, such as image filenames, detections,
-    groundtruth (if available).
-
-    Parameters
-    ----------
-    sequence_dir : str
-        Path to the MOTChallenge sequence directory.
-    detection_file : str
-        Path to the detection file.
-
-    Returns
-    -------
-    Dict
-        A dictionary of the following sequence information:
-
-        * sequence_name: Name of the sequence
-        * image_filenames: A dictionary that maps frame indices to image
-          filenames.
-        * detections: A numpy array of detections in MOTChallenge format.
-        * groundtruth: A numpy array of ground truth in MOTChallenge format.
-        * image_size: Image size (height, width).
-        * min_frame_idx: Index of the first frame.
-        * max_frame_idx: Index of the last frame.
-
-    """
-    image_dir = sequence_dir
-    image_filenames = {
-        int(os.path.splitext(f)[0].split("_")[1]): os.path.join(image_dir, f)
-        for f in os.listdir(image_dir)}
-    groundtruth_file = os.path.join(sequence_dir, "gt/gt.txt")
-    # print(image_filenames)
-
-    detections = None
-    if detection_file is not None:
-        detections = np.load(detection_file)
-    groundtruth = None
-    if os.path.exists(groundtruth_file):
-        groundtruth = np.loadtxt(groundtruth_file, delimiter=',')
-
-    if len(image_filenames) > 0:
-        image = cv2.imread(next(iter(image_filenames.values())),
-                           cv2.IMREAD_GRAYSCALE)
-        image_size = image.shape
-    else:
-        image_size = None
-
-    if len(image_filenames) > 0:
-        min_frame_idx = min(image_filenames.keys())
-        max_frame_idx = max(image_filenames.keys())
-    else:
-        min_frame_idx = int(detections[:, 0].min())
-        max_frame_idx = int(detections[:, 0].max())
-
-    info_filename = os.path.join(sequence_dir, "seqinfo.ini")
-    if os.path.exists(info_filename):
-        with open(info_filename, "r") as f:
-            line_splits = [l.split('=') for l in f.read().splitlines()[1:]]
-            info_dict = dict(
-                s for s in line_splits if isinstance(s, list) and len(s) == 2)
-
-        update_ms = 1000 / int(info_dict["frameRate"])
-    else:
-        update_ms = None
-
-    feature_dim = detections.shape[1] - 10 if detections is not None else 0
-    seq_info = {
-        "sequence_name": os.path.basename(sequence_dir),
-        "image_filenames": image_filenames,
-        "detections": detections,
-        "groundtruth": groundtruth,
-        "image_size": image_size,
-        "min_frame_idx": min_frame_idx,
-        "max_frame_idx": max_frame_idx,
-        "feature_dim": feature_dim,
-        "update_ms": update_ms
-    }
-    pickle.dump(seq_info, open( filename, "wb" ))
-    print("done")
-    return seq_info
-
+def gather_sequence_info(seqinfo):
+    return pickle.load(open(seqinfo, "rb"))
 
 def create_detections(detection_mat, frame_idx, min_height=0):
     """Create detections for given frame index from the raw detection matrix.
@@ -134,17 +51,14 @@ def create_detections(detection_mat, frame_idx, min_height=0):
     return detection_list
 
 
-def run(sequence_dir, detection_file, output_file, min_confidence,
+def run(seqinfofile, output_file, min_confidence,
         nms_max_overlap, min_detection_height, max_cosine_distance,
-        nn_budget, display, max_age, n_init, max_iou_distance, detections_cache_temp, filename_temp):
+        nn_budget, max_age, n_init, max_iou_distance, detections_cache_temp):
     
     global detections_cache
-    global filename
-
     if not os.path.exists(detections_cache_temp):
         os.mkdir(detections_cache_temp)
     detections_cache = detections_cache_temp + "/%s"
-    filename = filename_temp
 
 
     if os.path.exists(output_file):
@@ -178,7 +92,7 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
         If True, show visualization of intermediate tracking results.
 
     """
-    seq_info = gather_sequence_info(sequence_dir, detection_file)
+    seq_info = gather_sequence_info(seqinfofile)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget)
     tracker = Tracker(metric=metric, max_age=max_age, n_init=n_init, max_iou_distance=max_iou_distance)
@@ -234,10 +148,7 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
 
 
     # Run tracker.
-    if display:
-        visualizer = visualization.Visualization(seq_info, update_ms=5)
-    else:
-        visualizer = visualization.NoVisualization(seq_info)
+    visualizer = visualization.NoVisualization(seq_info)
     visualizer.run(frame_callback)
 
     # Store results.
@@ -258,16 +169,6 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="Deep SORT")
     parser.add_argument(
-        "--sequence_dir", help="Path to MOTChallenge sequence directory",
-        default=None, required=True)
-    parser.add_argument(
-        "--detection_file", help="Path to custom detections.", default=None,
-        required=True)
-    parser.add_argument(
-        "--output_file", help="Path to the tracking output file. This file will"
-        " contain the tracking results on completion.",
-        default="/tmp/hypotheses.txt")
-    parser.add_argument(
         "--min_confidence", help="Detection confidence threshold. Disregard "
         "all detections that have a confidence lower than this value.",
         default=0.7, type=float)
@@ -285,9 +186,6 @@ def parse_args():
         "--nn_budget", help="Maximum size of the appearance descriptors "
         "gallery. If None, no budget is enforced.", type=int, default=None)
     parser.add_argument(
-        "--display", help="Show intermediate tracking results",
-        default=True, type=bool_string)
-    parser.add_argument(
         "--max_age", type=int, default=30)
     parser.add_argument(
         "--n_init", type=int, default=3)
@@ -296,13 +194,21 @@ def parse_args():
     parser.add_argument(
         "--detections_cache", type=str)
     parser.add_argument(
-        "--filename", type=str)
+        "--vidfolder", type=str)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run(
-        args.sequence_dir, args.detection_file, args.output_file,
+
+    vidfolder = args.vidfolder
+    seqinfofile = vidfolder + "/seqinfo"
+
+    detections_cache = vidfolder + "/cached_detections"
+
+    output_file = vidfolder + "/experiments/deep_sort/labels_cosdist%.3f_maxage%d_ninit%d_ioudist%.3f.csv" % (
+        args.max_cosine_distance, args.max_age, args.n_init, args.max_iou_distance)
+
+    run(seqinfofile, output_file,
         args.min_confidence, args.nms_max_overlap, args.min_detection_height,
-        args.max_cosine_distance, args.nn_budget, args.display, args.max_age, args.n_init, args.max_iou_distance, args.detections_cache, args.filename)
+        args.max_cosine_distance, args.nn_budget, args.max_age, args.n_init, args.max_iou_distance, detections_cache)
