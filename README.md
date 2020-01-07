@@ -139,3 +139,9 @@ If you find this repo useful in your research, please consider citing the follow
       organization={IEEE},
       doi={10.1109/WACV.2018.00087}
     }
+
+## My Setup
+git clone --recurse-submodules https://github.com/neilsagarwal/deep\_sort.git
+cd deep_sort
+chmod +x setup.sh
+./setup.sh
