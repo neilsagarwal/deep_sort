@@ -27,17 +27,18 @@ from deep_sort.tracker import Tracker
 # reduces number of frames needed to go through detection algo
 flag_trigger = False
 
-flag_tracking_on = True # turn tracking results on; else, show all detections available
+flag_tracking_on = False # turn tracking results on; else, show all detections available
 
 model = "resources/networks/mars-small128.pb"
 encoder = create_box_encoder(model, batch_size=1)
 
 # iterate through frames... skip based on param
 WINDOW_NAME = "COCO detections"
-video_path = "<PASS VIDEO HERE>" 
+video_path = None # MODIFY VIDEO PATH HERE
+assert video_path is not None, "Please set video_path"
 frame_interval = 8
 cpu_device = torch.device("cpu")
-config_file = "detectron2/configs/quick_schedules/mask_rcnn_R_50_DC5_inference_acc_test.yaml"
+config_file = "detectron2/configs/COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml" # make sure to change corresponding weights!!
 confidence = 0.5
 
 frame_diff_thresh = 35 # pulled from glimpse paper...
@@ -51,6 +52,7 @@ db_dets = shelve.open("db_dets_%s" % dbname)
 cfg = get_cfg()
 cfg.merge_from_file(config_file)
 cfg.MODEL.DEVICE = "cpu"
+cfg.MODEL.WEIGHTS = "https://dl.fbaipublicfiles.com/detectron2/COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
 cfg.freeze()
 
 metadata = MetadataCatalog.get(
