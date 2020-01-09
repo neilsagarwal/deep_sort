@@ -109,7 +109,7 @@ class Track:
         ret[2:] = ret[:2] + ret[2:]
         return ret
 
-    def predict(self, kf):
+    def predict(self, kf, skipped_frames=1):
         """Propagate the state distribution to the current time step using a
         Kalman filter prediction step.
 
@@ -120,7 +120,7 @@ class Track:
 
         """
         self.mean, self.covariance = kf.predict(self.mean, self.covariance)
-        self.age += 1
+        self.age += skipped_frames
         self.time_since_update += 1
 
     def update(self, kf, detection):

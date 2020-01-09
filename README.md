@@ -140,8 +140,11 @@ If you find this repo useful in your research, please consider citing the follow
       doi={10.1109/WACV.2018.00087}
     }
 
-## My Setup
-git clone --recurse-submodules https://github.com/neilsagarwal/deep\_sort.git
-cd deep_sort
-chmod +x setup.sh
-./setup.sh
+## Set Up for Live Detection & Tracking.
+By live, I mean a batch size of 1 frame.  
+`git clone --recurse-submodules https://github.com/neilsagarwal/deep_sort.git`  
+`cd deep_sort`  
+`chmod +x setup.sh`  
+`./setup.sh`  
+Modify `video_path` in `live.py`  
+Run `python live.py`

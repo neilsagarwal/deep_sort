@@ -47,13 +47,13 @@ class Tracker:
         self.tracks = []
         self._next_id = 1
 
-    def predict(self):
+    def predict(self, skipped_frames=1):
         """Propagate track state distributions one time step forward.
 
         This function should be called once every time step, before `update`.
         """
         for track in self.tracks:
-            track.predict(self.kf)
+            track.predict(self.kf, skipped_frames)
 
     def update(self, detections):
         """Perform measurement update and track management.
