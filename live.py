@@ -34,7 +34,7 @@ encoder = create_box_encoder(model, batch_size=1)
 
 # iterate through frames... skip based on param
 WINDOW_NAME = "COCO detections"
-video_path = "../../../videosec/dp_surveillance_data/videos/prev_videos/auburn_short/auburn_short.mp4"
+video_path = "<PASS VIDEO HERE>" 
 frame_interval = 8
 cpu_device = torch.device("cpu")
 config_file = "detectron2/configs/quick_schedules/mask_rcnn_R_50_DC5_inference_acc_test.yaml"
@@ -102,7 +102,8 @@ while vdo.grab():
             diff = sum(sum((cv2.absdiff(curr_frame_gray,stored_frame_gray) > frame_diff_thresh).astype(int)))
 
         if not flag_trigger or stored_frame_gray is None or diff> new_detection_needed_thresh:
-            print("Diff threshold surpassed; diff = %d." % diff)
+            if stored_frame_gray is not None and flag_trigger:
+                print("Diff threshold surpassed; diff = %d." % diff)
 
             # Cache object detection results!
             if str(idx_frame) in db.keys():
