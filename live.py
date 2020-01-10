@@ -24,9 +24,9 @@ from deep_sort.tracker import Tracker
 # reduces number of frames needed to go through detection algo
 flag_trigger = False
 
-flag_tracking_on = True # turn tracking results on; else, show all detections available
+flag_tracking_on = False # turn tracking results on; else, show all detections available
 
-flag_save_video = False # store results in a .mp4 in same directory
+flag_save_video = True # store results in a .mp4 in same directory
 
 model = "resources/networks/mars-small128.pb"
 encoder = create_box_encoder(model, batch_size=1)
@@ -45,7 +45,14 @@ frame_diff_thresh = 35 # pulled from glimpse paper...
 new_detection_needed_thresh_percent = 3 # 3 percent of pixels diff to engage.
 new_detection_needed_thresh = None # None bc calculated based off first im and then set
 
+flag_crop = False
+cropped_height_start = 400
+cropped_height = 250
+cropped_width_start = 900
+cropped_width = 300
+
 dbname = video_path.split("/")[-1].split(".")[0]
+if flag_crop: dbname += "_cropped"
 db = shelve.open("db_%s" % dbname)
 db_dets = shelve.open("db_dets_%s" % dbname)
 
@@ -68,6 +75,10 @@ height = int(vdo.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 if flag_save_video:
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    if flag_crop:
+        width = cropped_width
+        height = cropped_height
+    print(width, height)
     out_vid = cv2.VideoWriter('%s.mp4' % dbname, fourcc, 30.0, (width, height), True)
 
 assert vdo.isOpened()
@@ -97,6 +108,10 @@ skipped_frames = 0
 while vdo.grab():
     _, ori_im = vdo.retrieve()
     im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
+
+    if flag_crop:
+        # note that height is first, and width is second
+        im = im[cropped_height_start:cropped_height+cropped_height_start, cropped_width_start:cropped_width_start+cropped_width]
 
     if new_detection_needed_thresh is None:
         new_detection_needed_thresh = float(width*height) * new_detection_needed_thresh_percent / 100
