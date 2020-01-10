@@ -1,6 +1,3 @@
-# pip install opencv-contrib-python
-# python -m pip install tensorflow==1.14
-
 import cv2
 import time
 import torch
@@ -27,7 +24,9 @@ from deep_sort.tracker import Tracker
 # reduces number of frames needed to go through detection algo
 flag_trigger = False
 
-flag_tracking_on = False # turn tracking results on; else, show all detections available
+flag_tracking_on = True # turn tracking results on; else, show all detections available
+
+flag_save_video = False # store results in a .mp4 in same directory
 
 model = "resources/networks/mars-small128.pb"
 encoder = create_box_encoder(model, batch_size=1)
@@ -35,17 +34,18 @@ encoder = create_box_encoder(model, batch_size=1)
 # iterate through frames... skip based on param
 WINDOW_NAME = "COCO detections"
 video_path = None # MODIFY VIDEO PATH HERE
+
 assert video_path is not None, "Please set video_path"
 frame_interval = 8
 cpu_device = torch.device("cpu")
 config_file = "detectron2/configs/COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml" # make sure to change corresponding weights!!
-confidence = 0.5
+confidence = 0.1
 
 frame_diff_thresh = 35 # pulled from glimpse paper...
 new_detection_needed_thresh_percent = 3 # 3 percent of pixels diff to engage.
 new_detection_needed_thresh = None # None bc calculated based off first im and then set
 
-dbname = video_path.split("/")[-1].split(".mp4")[0]
+dbname = video_path.split("/")[-1].split(".")[0]
 db = shelve.open("db_%s" % dbname)
 db_dets = shelve.open("db_dets_%s" % dbname)
 
@@ -63,6 +63,12 @@ predictor = DefaultPredictor(cfg)
 
 vdo = cv2.VideoCapture()
 vdo.open(video_path)
+width = int(vdo.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(vdo.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+if flag_save_video:
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out_vid = cv2.VideoWriter('%s.mp4' % dbname, fourcc, 30.0, (width, height), True)
 
 assert vdo.isOpened()
 
@@ -93,7 +99,7 @@ while vdo.grab():
     im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
 
     if new_detection_needed_thresh is None:
-        new_detection_needed_thresh = float(len(im[0]) * len(im)) * new_detection_needed_thresh_percent / 100
+        new_detection_needed_thresh = float(width*height) * new_detection_needed_thresh_percent / 100
 
     idx_frame += 1
     if idx_frame % frame_interval == 0:
@@ -164,12 +170,20 @@ while vdo.grab():
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
 
     if stored_boxes is None:
+        if flag_save_video:
+            out_vid.write(im[:, :, ::-1])
         cv2.imshow(WINDOW_NAME, im[:, :, ::-1])
     else:
+        print(len(stored_boxes))
         visualizer = Visualizer(im, metadata, instance_mode=ColorMode.IMAGE)
         visualized_output = visualizer.overlay_instances(boxes=stored_boxes, assigned_colors=stored_colors)
-        cv2.imshow(WINDOW_NAME, visualized_output.get_image()[:, :, ::-1])
+        img = visualized_output.get_image()[:, :, ::-1]
+        if flag_save_video:
+            out_vid.write(img)
+        cv2.imshow(WINDOW_NAME, img)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         db.close()
         db_dets.close()
+        if flag_save_video:
+            out_vid.release()
         break
